@@ -1,0 +1,33 @@
+This model was used for these results:
+______________________________________
+    def deriv(self, y, t, p):
+        """
+        Function which calculates the derivatives and returns them..
+        Every ODEModel needs a deriv function - The 'heart' of the model.
+        """
+        #Unpack the state vector
+        Lactate, lldr_mRNA, lldr, lldr_complex, GFP_mRNA, GFP, Cx = y
+        #Unpack the parameter vector
+        k_b_p3, k_b_p11, k_op_succ,k_pt_lldr, k_pt_gfp, k_f_lldrcomplex, k_d_lldrmRNA, k_d_lldr, k_d_lldrcomplex, k_d_gfpmRNA, k_d_gfp, alpaga_basal, alpaga_act1, alpaga_act2, alpaga_k3, alpaga_k_act1, alpaga_k_act2, copy_nr, mumax, tc, cap, sigma, scale = p
+        
+        #Keller paper synthesis rate
+        #AlpaGA promoter
+        top_a = alpaga_basal + (alpaga_act1 + alpaga_basal)*(alpaga_k_act1*lldr) + (alpaga_act2 + alpaga_basal)*(alpaga_k_act2*lldr_complex) #(epsilon_r/2)*rep_p*alpaga_basal*alpaga_k3*lldr**2
+        bottom_a = 1 + alpaga_k_act1*lldr + alpaga_k_act2*lldr_complex + alpaga_k3*lldr**2
+        
+        #Calculate growth rate
+        mu = mumax*np.exp(-0.5*((t-tc)/sigma)**2)*(1-Cx/cap)
+
+        #Calculate the derivatives
+        d_Lactate_dt = 0 #We assume that the lactate concentration is constant
+        d_Lldr_mRNA_dt = mu/mumax*(k_op_succ + copy_nr*k_b_p3) -lldr_mRNA*k_d_lldrmRNA -lldr_mRNA*mu
+        d_lldr_dt =  mu*(k_pt_lldr*lldr_mRNA) -k_f_lldrcomplex*lldr*Lactate**2 -lldr*k_d_lldr -lldr*mu
+        d_lldr_complex_dt =  k_f_lldrcomplex*lldr*Lactate**2 - lldr_complex*k_d_lldrcomplex - lldr_complex*mu
+        d_GFP_mRNA_dt = mu/mumax*(copy_nr*top_a/bottom_a) - GFP_mRNA*k_d_gfpmRNA - GFP_mRNA*mu
+        d_GFP_dt =  mu*(k_pt_gfp*GFP_mRNA) - GFP*k_d_gfp-GFP*mu
+        d_Cx_dt = Cx*mu
+        
+        #Pack the derivative vector
+        dydt = [d_Lactate_dt, d_Lldr_mRNA_dt, d_lldr_dt, d_lldr_complex_dt, d_GFP_mRNA_dt, d_GFP_dt, d_Cx_dt]
+
+        return dydt
